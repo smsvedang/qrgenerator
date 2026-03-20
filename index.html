@@ -1,3 +1,6 @@
+
+Copy
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,22 +12,22 @@
 <meta name="author" content="Vedang Soni">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#080a12">
-<link rel="canonical" href="https://unlimitfreeqrgenerator.vercel.app">
-
+<link rel="canonical" href="https://smsvedang.github.io/qrgenerator">
+ 
 <!-- Open Graph / Facebook / WhatsApp -->
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://unlimitfreeqrgenerator.vercel.app">
+<meta property="og:url" content="https://smsvedang.github.io/qrgenerator">
 <meta property="og:title" content="QR Studio — Free QR Code Generator with Tracking">
 <meta property="og:description" content="Generate trackable QR codes for URL, WiFi, UPI, Contact, WhatsApp, Location & more. Scan analytics in Google Sheets. Free forever. No server needed.">
-<meta property="og:image" content="https://unlimitfreeqrgenerator.vercel.appog-image.png">
+<meta property="og:image" content="https://smsvedang.github.io/qrgeneratorog-image.png">
 <meta property="og:locale" content="en_IN">
 <meta property="og:site_name" content="QR Studio by Vedang Soni">
-
+ 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="QR Studio — Free QR Code Generator with Tracking">
 <meta name="twitter:description" content="12 QR types · Scan tracking via Google Sheets · Logo overlay · Bulk generate · QR Scanner. Free forever.">
-<meta name="twitter:image" content="https://unlimitfreeqrgenerator.vercel.appog-image.png">
+<meta name="twitter:image" content="https://smsvedang.github.io/qrgeneratorog-image.png">
 
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-7Y5V4PQDYM"></script>
@@ -42,7 +45,7 @@
   "@context": "https://schema.org",
   "@type": "WebApplication",
   "name": "QR Studio",
-  "url": "https://smsvedang.github.io/qr-studio/",
+  "url": "https://smsvedang.github.io/qrgenerator",
   "description": "Free QR code generator supporting 12 types with built-in scan tracking via Google Sheets. Features logo overlay, bulk generation, QR scanner, and campaign management.",
   "applicationCategory": "UtilitiesApplication",
   "operatingSystem": "Any",
@@ -325,6 +328,7 @@ a{color:var(--blue2);text-decoration:none}
     <div class="nav-label">Resources</div>
     <button class="nitem" onclick="go('guide',this)"><span class="ico">📖</span> User Guide</button>
     <button class="nitem" onclick="go('codepage',this)"><span class="ico">⌨</span> Code.gs</button>
+    <button class="nitem" onclick="go('workerpage',this)"><span class="ico">☁</span> worker.js</button>
   </div>
  
   <div class="rail-foot">
@@ -778,6 +782,41 @@ a{color:var(--blue2);text-decoration:none}
     </div>
   </div>
  
+ 
+  <!-- ════ WORKER.JS PAGE ════ -->
+  <div id="p-workerpage" class="page" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:18px;font-weight:600;margin-bottom:4px">worker.js — Cloudflare Worker</div>
+        <div style="font-size:13px;color:var(--ink3)">Yeh code Cloudflare Worker mein paste karo</div>
+      </div>
+      <button class="btn btn-blue btn-sm" onclick="copyWorkerJs()">⎘ Copy All Code</button>
+    </div>
+ 
+    <div class="card" style="background:rgba(245,166,35,.06);border-color:rgba(245,166,35,.25);margin-bottom:16px">
+      <div style="font-size:13px;color:var(--amber);font-weight:500">⚠ Line 11 pe <code style="background:rgba(245,166,35,.15);border-color:rgba(245,166,35,.3)">APNA_SCRIPT_URL_YAHAN</code> ki jagah apna Apps Script URL daalna na bhoolo</div>
+    </div>
+ 
+    <div class="card" style="background:rgba(79,123,255,.06);border-color:rgba(79,123,255,.25);margin-bottom:16px">
+      <div style="font-size:13px;color:var(--blue2);line-height:1.7">
+        <strong style="color:var(--ink)">Cloudflare Worker deploy steps:</strong><br>
+        1. <a href="https://workers.cloudflare.com" target="_blank" style="color:var(--blue2)">cloudflare.com</a> → Workers &amp; Pages → Create Worker → "Start with Hello World!" → naam do → Deploy<br>
+        2. "Edit Code" → saara purana code delete karo → neeche se code copy karo → paste karo<br>
+        3. Line 11 pe <code style="background:rgba(79,123,255,.12)">APPS_SCRIPT_URL</code> mein apna Apps Script URL daalo<br>
+        4. Save and Deploy → Worker URL copy karo → Setup tab mein paste karo
+      </div>
+    </div>
+ 
+    <div style="position:relative">
+      <pre id="worker-js-display" style="background:var(--bg);border:1px solid var(--bd);border-radius:var(--rl);padding:20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cyan);overflow-x:auto;white-space:pre;line-height:1.65;max-height:600px;overflow-y:auto"></pre>
+      <button onclick="copyWorkerJs()" class="btn btn-ghost btn-xs" style="position:absolute;top:10px;right:10px">⎘ Copy</button>
+    </div>
+ 
+    <div style="text-align:center;padding:20px;color:var(--ink3);font-size:12px;border-top:1px solid var(--bd);margin-top:16px">
+      © 2025 <strong style="color:var(--ink2)">Vedang Soni</strong> · QR Studio · Cloudflare Worker
+    </div>
+  </div>
+ 
   </div><!-- /content -->
 </main>
 </div>
@@ -1065,8 +1104,8 @@ window.onload=()=>{
 // ═══════════════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════════════
-const PAGES={create:'Create QR Code',history:'QR History',tracked:'Tracked QRs',setup:'Tracking Setup',bulk:'Bulk Generator',scanner:'QR Scanner',guide:'User Guide',codepage:'Code.gs — Apps Script'};
-const SUBS={create:'Choose type → Fill details → Generate',history:'Locally saved QR codes',tracked:'Scans logged in Google Sheets',setup:'One-time configuration',bulk:'Multiple QR codes at once',scanner:'Read QR code from image',guide:'Step-by-step setup and usage',codepage:'Copy this into Google Apps Script'};
+const PAGES={create:'Create QR Code',history:'QR History',tracked:'Tracked QRs',setup:'Tracking Setup',bulk:'Bulk Generator',scanner:'QR Scanner',guide:'User Guide',codepage:'Code.gs — Apps Script',workerpage:'worker.js — Cloudflare Worker'};
+const SUBS={create:'Choose type → Fill details → Generate',history:'Locally saved QR codes',tracked:'Scans logged in Google Sheets',setup:'One-time configuration',bulk:'Multiple QR codes at once',scanner:'Read QR code from image',guide:'Step-by-step setup and usage',codepage:'Copy this into Google Apps Script',workerpage:'Cloudflare Workers mein paste karo'};
  
  
  
@@ -1348,6 +1387,280 @@ function detectOS(ua){ if(/android/i.test(ua)) return 'Android'; if(/iphone|ipad
 function detectBrowser(ua){ if(/ucbrowser/i.test(ua)) return 'UC Browser'; if(/opr/i.test(ua)) return 'Opera'; if(/edge/i.test(ua)) return 'Edge'; if(/chrome|crios/i.test(ua)&&!/edge/.test(ua)) return 'Chrome'; if(/firefox/i.test(ua)) return 'Firefox'; if(/safari/i.test(ua)&&!/chrome/i.test(ua)) return 'Safari'; return 'Unknown'; }
 function jsonResp(obj){ return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }`;
  
+ 
+// ═══════════════════════════════════════════════════
+//  WORKER.JS PAGE
+// ═══════════════════════════════════════════════════
+const WORKER_JS_TEXT = `// =====================================================
+// QR Studio — Cloudflare Worker (v1.2 — FIXED)
+// © 2025 Vedang Soni · All rights reserved
+//
+// FIXES:
+//  - Apps Script redirect follow karta hai
+//  - Better error handling
+//  - /health endpoint
+//  - CORS headers for dashboard
+// =====================================================
+ 
+// ── Apna Apps Script URL yahan daalo ──
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/APNA_SCRIPT_URL_YAHAN/exec';
+ 
+// ── CORS headers for dashboard ──
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+ 
+export default {
+  async fetch(request, env, ctx) {
+    const url    = new URL(request.url);
+    const path   = url.pathname;
+    const method = request.method;
+ 
+    // OPTIONS preflight
+    if (method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS });
+    }
+ 
+    // ── /health ──
+    if (path === '/' || path === '/health') {
+      return Response.json(
+        { status: 'ok', service: 'QR Studio Worker v1.2', author: '© 2025 Vedang Soni' },
+        { headers: CORS }
+      );
+    }
+ 
+    // ── /r/:id — QR scan → proper 302 redirect ──
+    if (path.startsWith('/r/')) {
+      const id = decodeURIComponent(path.slice(3).split('?')[0]);
+      if (!id) return Response.redirect('https://sahyogmedical.in', 302);
+ 
+      // Fetch final URL from Apps Script
+      const finalUrl = await getUrlFromScript(id);
+ 
+      if (!finalUrl) {
+        return new Response(notFoundHtml(id), {
+          status: 404,
+          headers: { 'Content-Type': 'text/html;charset=utf-8' }
+        });
+      }
+ 
+      // ctx.waitUntil keeps Worker alive after redirect until logging done
+      ctx.waitUntil(logScan(request, id));
+ 
+      // ── PROPER HTTP 302 REDIRECT ──
+      return new Response(null, {
+        status: 302,
+        headers: { 'Location': finalUrl }
+      });
+    }
+ 
+    // ── /api/create ──
+    if (path === '/api/create' && method === 'POST') {
+      try {
+        const body = await request.json();
+        const result = await postToScript({ action: 'create', ...body });
+        return Response.json(result, { headers: CORS });
+      } catch (e) {
+        return Response.json({ success: false, error: e.message }, { headers: CORS });
+      }
+    }
+ 
+    // ── /api/update ──
+    if (path === '/api/update' && method === 'POST') {
+      try {
+        const body = await request.json();
+        const result = await postToScript({ action: 'update', ...body });
+        return Response.json(result, { headers: CORS });
+      } catch (e) {
+        return Response.json({ success: false, error: e.message }, { headers: CORS });
+      }
+    }
+ 
+    // ── /api/list ──
+    if (path === '/api/list') {
+      try {
+        const result = await getFromScript('action=list');
+        return Response.json(result, { headers: CORS });
+      } catch (e) {
+        return Response.json({ success: false, qrs: [], error: e.message }, { headers: CORS });
+      }
+    }
+ 
+    // ── /api/stats/:id ──
+    if (path.startsWith('/api/stats/')) {
+      const id = decodeURIComponent(path.slice(11));
+      try {
+        const result = await postToScript({ action: 'getStats', id });
+        return Response.json(result, { headers: CORS });
+      } catch (e) {
+        return Response.json({ success: false, stats: { total: 0, rows: [] } }, { headers: CORS });
+      }
+    }
+ 
+    return new Response('Not found', { status: 404 });
+  }
+};
+ 
+// ══════════════════════════════════════════════════
+// Fetch final URL from Apps Script
+// ══════════════════════════════════════════════════
+async function getUrlFromScript(id) {
+  try {
+    const result = await getFromScript('action=getUrl&id=' + encodeURIComponent(id));
+    if (result && result.success && result.url) return result.url;
+    return null;
+  } catch (e) {
+    console.error('getUrl error:', e.message);
+    return null;
+  }
+}
+ 
+// ══════════════════════════════════════════════════
+// GET request to Apps Script — follows redirects
+// ══════════════════════════════════════════════════
+async function getFromScript(queryString) {
+  const fetchUrl = APPS_SCRIPT_URL + '?' + queryString;
+ 
+  const resp = await fetch(fetchUrl, {
+    method: 'GET',
+    redirect: 'follow',  // IMPORTANT: follow Google's auth redirects
+    headers: {
+      'User-Agent': 'QR-Studio-Worker/1.2',
+    },
+    cf: { cacheTtl: 3 }  // 3 second cache
+  });
+ 
+  const text = await resp.text();
+ 
+  // Try JSON parse
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    // If response is HTML (login page or error) — log and return null
+    console.error('Non-JSON response from Apps Script:', text.substring(0, 200));
+    return null;
+  }
+}
+ 
+// ══════════════════════════════════════════════════
+// POST request to Apps Script
+// ══════════════════════════════════════════════════
+async function postToScript(payload) {
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: {
+      'Content-Type': 'text/plain',  // Apps Script expects text/plain
+      'User-Agent': 'QR-Studio-Worker/1.2',
+    },
+    body: JSON.stringify(payload)
+  });
+ 
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    console.error('Non-JSON POST response:', text.substring(0, 200));
+    return { success: false, error: 'Script returned non-JSON' };
+  }
+}
+ 
+// ══════════════════════════════════════════════════
+// Log scan — async, called via ctx.waitUntil()
+// Worker stays alive until this completes
+// ══════════════════════════════════════════════════
+async function logScan(request, id) {
+  const ip      = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const ua      = request.headers.get('User-Agent') || '';
+  const country = request.headers.get('CF-IPCountry') || '';
+  const city    = request.cf?.city    || '';
+  const region  = request.cf?.region  || '';
+ 
+  try {
+    await postToScript({
+      action:  'logScan',
+      id, ip, ua,
+      device:  detectDevice(ua),
+      os:      detectOS(ua),
+      browser: detectBrowser(ua),
+      city, region, country
+    });
+  } catch (e) {
+    console.error('logScan failed:', e.message);
+  }
+}
+ 
+// ══════════════════════════════════════════════════
+// 404 page
+// ══════════════════════════════════════════════════
+function notFoundHtml(id) {
+  return \`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>QR Not Found</title>
+<style>
+  body{font-family:-apple-system,sans-serif;margin:0;min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    background:#0f0f0f;color:#888;text-align:center}
+  .box{padding:40px}
+  .ico{font-size:40px;margin-bottom:16px}
+  h2{color:#ccc;font-size:20px;margin-bottom:8px;font-weight:500}
+  p{font-size:14px;color:#666;margin-bottom:4px}
+  code{background:#1a1a1a;border:1px solid #333;border-radius:4px;
+    padding:2px 8px;font-size:12px;color:#888}
+  .hint{margin-top:16px;font-size:12px;color:#555}
+</style>
+</head><body>
+<div class="box">
+  <div class="ico">◉</div>
+  <h2>QR code not found</h2>
+  <p>ID: <code>\${id}</code></p>
+  <p>This QR may not have been saved yet, or the ID is incorrect.</p>
+  <div class="hint">© 2025 Vedang Soni · QR Studio</div>
+</div>
+</body></html>\`;
+}
+ 
+// ══════════════════════════════════════════════════
+// UA Parsers
+// ══════════════════════════════════════════════════
+function detectDevice(ua) {
+  if (/tablet|ipad/i.test(ua))    return 'tablet';
+  if (/mobile|android|iphone/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
+ 
+function detectOS(ua) {
+  if (/android/i.test(ua))           return 'Android';
+  if (/iphone|ipad/i.test(ua))       return 'iOS';
+  if (/windows nt 10/i.test(ua))     return 'Windows 10/11';
+  if (/windows/i.test(ua))           return 'Windows';
+  if (/mac os x/i.test(ua))          return 'macOS';
+  if (/linux/i.test(ua))             return 'Linux';
+  return 'Unknown';
+}
+ 
+function detectBrowser(ua) {
+  if (/samsungbrowser/i.test(ua))                      return 'Samsung Browser';
+  if (/edg\\//i.test(ua))                               return 'Edge';
+  if (/chrome\\/[0-9]/i.test(ua) && !/edg/.test(ua))   return 'Chrome';
+  if (/firefox/i.test(ua))                             return 'Firefox';
+  if (/safari/i.test(ua) && !/chrome/i.test(ua))      return 'Safari';
+  return 'Unknown';
+}
+`;
+ 
+function initWorkerPage(){
+  const el = document.getElementById('worker-js-display');
+  if(el && !el.textContent) el.textContent = WORKER_JS_TEXT;
+}
+ 
+function copyWorkerJs(){
+  navigator.clipboard.writeText(WORKER_JS_TEXT).then(()=>toast('worker.js copied!','ok')).catch(()=>{
+    const t=document.createElement('textarea');t.value=WORKER_JS_TEXT;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Copied!','ok');
+  });
+}
+ 
 function initCodePage(){
   const el = document.getElementById('code-gs-display');
   if(el && !el.textContent) el.textContent = CODE_GS_TEXT;
@@ -1371,6 +1684,7 @@ function go(page,btn){
   if(page==='history')renderHistory();
   if(page==='tracked')loadTracked();
   if(page==='codepage')initCodePage();
+  if(page==='workerpage')initWorkerPage();
 }
  
 // ═══════════════════════════════════════════════════
