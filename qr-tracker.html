@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Tracker — Sahyog Medical</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3352;
+    --text: #e2e4f0;
+    --muted: #7b7fa8;
+    --accent: #6c63ff;
+    --accent-light: #a89cff;
+    --green: #22c97a;
+    --red: #f06a6a;
+    --amber: #f5b942;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* Layout */
+  .app { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .brand {
+    padding: 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .brand-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .nav { padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    text-align: left; padding: 9px 12px; border-radius: 7px;
+    font-size: 13px; font-weight: 500; transition: all 0.15s; width: 100%;
+  }
+  .nav-btn:hover { background: var(--bg3); color: var(--text); }
+  .nav-btn.active { background: rgba(108,99,255,0.18); color: var(--accent-light); }
+
+  .main { padding: 28px; overflow-y: auto; }
+
+  /* Section titles */
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  /* Cards */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+
+  /* Form */
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  input, select {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 9px 12px;
+    font-size: 13px; outline: none; transition: border-color 0.15s;
+    margin-bottom: 14px;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: -10px; margin-bottom: 14px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #7d76ff; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+  .btn-green { background: rgba(34,201,122,0.15); color: var(--green); border: 1px solid rgba(34,201,122,0.3); }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+
+  /* QR result */
+  #qr-result { display: none; }
+  #qr-canvas-wrap {
+    display: inline-block;
+    background: white;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .tracking-url {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    font-family: monospace; font-size: 12px; color: var(--accent-light);
+    word-break: break-all; margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .url-text { flex: 1; }
+  .copy-btn {
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    font-size: 16px; padding: 2px 6px; border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .copy-btn:hover { color: var(--accent-light); }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* QR List */
+  .qr-item {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .qr-item-info { flex: 1; min-width: 0; }
+  .qr-item-label { font-weight: 600; font-size: 14px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .qr-item-url { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 100px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-purple { background: rgba(108,99,255,0.15); color: var(--accent-light); }
+  .badge-green { background: rgba(34,201,122,0.15); color: var(--green); }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .stat-num { font-size: 28px; font-weight: 700; }
+  .stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Scan log table */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(46,51,82,0.4); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* Setup section */
+  .step-box {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-bottom: 12px;
+  }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: white; font-size: 12px; font-weight: 700;
+    margin-right: 10px; flex-shrink: 0;
+  }
+  .step-header { display: flex; align-items: center; margin-bottom: 10px; font-weight: 600; font-size: 14px; }
+  code {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 5px; padding: 2px 7px; font-size: 12px;
+    font-family: monospace; color: var(--accent-light);
+  }
+  .code-block {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; font-family: monospace; font-size: 12px; color: var(--accent-light);
+    white-space: pre-wrap; margin: 8px 0; line-height: 1.6;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #22263a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 20px; font-size: 13px; color: var(--text);
+    opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 999;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Sections */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Loading */
+  .loading { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">▦ QR Tracker</div>
+      <div class="brand-sub">Sahyog Medical</div>
+    </div>
+    <nav class="nav">
+      <button class="nav-btn active" onclick="showSection('create')">+ Create QR</button>
+      <button class="nav-btn" onclick="showSection('list')">▤ My QR Codes</button>
+      <button class="nav-btn" onclick="showSection('setup')">⚙ Setup</button>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ======================== CREATE ======================== -->
+    <div id="sec-create" class="section active">
+      <div class="page-title">Create QR Code</div>
+      <div class="page-sub">URL daalo, QR generate karo, scan track hoga Google Sheets mein</div>
+
+      <div class="card">
+        <div class="card-title">QR Details</div>
+
+        <label>Destination URL *</label>
+        <input id="inp-url" type="url" placeholder="https://sahyogmedical.in/offer">
+
+        <label>Label (optional)</label>
+        <input id="inp-label" placeholder="March Free Delivery Poster">
+
+        <label>Campaign (optional)</label>
+        <input id="inp-campaign" placeholder="March 2025 Offer">
+
+        <label>Custom ID (optional)</label>
+        <input id="inp-id" placeholder="march-offer" style="text-transform:lowercase">
+        <div class="hint">Leave blank for auto-generated ID</div>
+
+        <button class="btn btn-primary" onclick="generateQR()" style="width:100%; justify-content:center; padding:11px;">▦ Generate QR Code</button>
+      </div>
+
+      <!-- Result -->
+      <div id="qr-result" class="card">
+        <div class="card-title">Your QR Code</div>
+        <div style="display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap;">
+          <div>
+            <div id="qr-canvas-wrap"><div id="qr-canvas"></div></div>
+            <div class="btn-row">
+              <button class="btn btn-green btn-sm" onclick="downloadQR()">↓ PNG</button>
+              <button class="btn btn-ghost btn-sm" onclick="downloadSVG()">↓ SVG</button>
+            </div>
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <div style="font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Tracking URL</div>
+            <div class="tracking-url">
+              <span class="url-text" id="show-tracking-url">—</span>
+              <button class="copy-btn" onclick="copyUrl()">⎘</button>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-top:10px;">Destination</div>
+            <div class="tracking-url">
+              <span class="url-text" id="show-final-url" style="color:#e2e4f0;">—</span>
+            </div>
+            <div id="save-status" style="font-size:12px; color:var(--green); margin-top:6px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== LIST ======================== -->
+    <div id="sec-list" class="section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div class="page-title">My QR Codes</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadQRs()">↻ Refresh</button>
+      </div>
+      <div class="page-sub">Sab QR codes aur unke stats</div>
+
+      <div id="qr-list-wrap">
+        <div class="loading">Apps Script URL setup karo pehle (Setup tab)</div>
+      </div>
+    </div>
+
+    <!-- ======================== SETUP ======================== -->
+    <div id="sec-setup" class="section">
+      <div class="page-title">Setup</div>
+      <div class="page-sub">Ek baar setup karo, phir sab automatic</div>
+
+      <div class="step-box">
+        <div class="step-header"><span class="step-num">1</span> Google Sheet banao</div>
+        <p style="color:var(--muted); font-size:13px; margin-bottom:10px;">Nayi Google Sheet banao, URL se Sheet ID copy karo:</p>
+        <div class="code-block">https://docs.google.com/spreadsheets/d/<span style="color:#f5b942;">YAHAN_SE_COPY_KARO</span>/edit</div>
+        <p style="color:var(--muted); font-size:13px;">Sheet mein 2 tabs automatically ban jayenge: <code>QR_Codes</code> aur <code>Scans</code></p>
+      </div>
+
+      <div class="step-box">
+        <div class="step-header"><span class="step-num">2</span> Apps Script deploy karo</div>
+        <p style="color:var(--muted); font-size:13px; margin-bottom:10px;">
+          1. <a href="https://script.google.com" target="_blank" style="color:var(--accent-light);">script.google.com</a> kholo<br>
+          2. New Project → <code>Code.gs</code> mein saara code paste karo (jo file diya hai)<br>
+          3. <code>SHEET_ID</code> wali line mein apna Sheet ID daalo<br>
+          4. Deploy → New deployment → Web app<br>
+          5. Execute as: <strong>Me</strong> | Access: <strong>Anyone</strong><br>
+          6. Deploy karo → URL copy karo
+        </p>
+      </div>
+
+      <div class="step-box">
+        <div class="step-header"><span class="step-num">3</span> URL yahan paste karo</div>
+        <label>Apps Script Web App URL</label>
+        <input id="inp-script-url" placeholder="https://script.google.com/macros/s/XXXXX/exec"
+          oninput="saveScriptUrl(this.value)">
+        <div id="url-saved" style="font-size:12px; color:var(--green); margin-top:-8px; margin-bottom:12px;"></div>
+        <button class="btn btn-primary" onclick="testConnection()">Test Connection</button>
+        <div id="test-result" style="font-size:13px; margin-top:10px;"></div>
+      </div>
+
+      <div class="step-box">
+        <div class="step-header"><span class="step-num">4</span> Done! ✓</div>
+        <p style="color:var(--muted); font-size:13px;">
+          Ab QR banao → koi bhi scan kare → data Google Sheets mein automatically log hoga.<br><br>
+          <strong style="color:var(--text);">Tracking URL format:</strong>
+          <code id="show-base-url">https://script.google.com/macros/s/XXXXX/exec?id=your-id</code>
+        </p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===================== STATE =====================
+let SCRIPT_URL = localStorage.getItem('qs_script_url') || '';
+let currentQRId = '';
+let currentFinalUrl = '';
+let currentLabel = '';
+let qrInstance = null;
+
+// ===================== INIT =====================
+window.onload = () => {
+  const saved = localStorage.getItem('qs_script_url');
+  if (saved) {
+    document.getElementById('inp-script-url').value = saved;
+    updateBaseUrlDisplay(saved);
+  }
+};
+
+// ===================== NAVIGATION =====================
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (name === 'list') loadQRs();
+}
+
+// ===================== GENERATE QR =====================
+function generateQR() {
+  const url = document.getElementById('inp-url').value.trim();
+  const label = document.getElementById('inp-label').value.trim();
+  const campaign = document.getElementById('inp-campaign').value.trim();
+  let id = document.getElementById('inp-id').value.trim().toLowerCase().replace(/\s+/g, '-') || randomId();
+
+  if (!url) return toast('URL daalo pehle!');
+  if (!SCRIPT_URL) return toast('Setup tab mein Apps Script URL daalo pehle!');
+
+  try { new URL(url); } catch { return toast('Valid URL daalo (https:// se shuru karo)'); }
+
+  currentQRId = id;
+  currentFinalUrl = url;
+  currentLabel = label || id;
+
+  const trackingUrl = `${SCRIPT_URL}?id=${id}`;
+
+  // Show result section
+  document.getElementById('qr-result').style.display = 'block';
+  document.getElementById('show-tracking-url').textContent = trackingUrl;
+  document.getElementById('show-final-url').textContent = url;
+  document.getElementById('save-status').textContent = '';
+
+  // Generate QR
+  document.getElementById('qr-canvas').innerHTML = '';
+  qrInstance = new QRCode(document.getElementById('qr-canvas'), {
+    text: trackingUrl,
+    width: 200,
+    height: 200,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  // Save to Apps Script
+  callScript({ action: 'create', id, url, label, campaign })
+    .then(() => {
+      document.getElementById('save-status').textContent = '✓ Saved to Google Sheets';
+      toast('QR created & saved!');
+    })
+    .catch(() => {
+      document.getElementById('save-status').textContent = '⚠ Offline save failed — check connection';
+    });
+
+  // Scroll to result
+  document.getElementById('qr-result').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===================== DOWNLOAD =====================
+function downloadQR() {
+  const canvas = document.querySelector('#qr-canvas canvas') || document.querySelector('#qr-canvas img');
+  if (!canvas) return toast('QR pehle generate karo');
+
+  if (canvas.tagName === 'CANVAS') {
+    const link = document.createElement('a');
+    link.download = `qr-${currentQRId}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } else {
+    const link = document.createElement('a');
+    link.download = `qr-${currentQRId}.png`;
+    link.href = canvas.src;
+    link.click();
+  }
+}
+
+function downloadSVG() {
+  if (!currentQRId || !SCRIPT_URL) return;
+  const trackingUrl = `${SCRIPT_URL}?id=${currentQRId}`;
+
+  // Generate SVG via QR logic
+  const size = 200;
+  const modules = getQRModules(trackingUrl);
+  if (!modules) return toast('SVG export failed');
+
+  const cellSize = Math.floor(size / modules.length);
+  let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`;
+  svgContent += `<rect width="${size}" height="${size}" fill="white"/>`;
+  modules.forEach((row, r) => {
+    row.forEach((cell, c) => {
+      if (cell) {
+        svgContent += `<rect x="${c * cellSize}" y="${r * cellSize}" width="${cellSize}" height="${cellSize}" fill="black"/>`;
+      }
+    });
+  });
+  svgContent += '</svg>';
+
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.download = `qr-${currentQRId}.svg`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}
+
+function getQRModules(text) {
+  // Use qrcodejs internal to get module matrix
+  try {
+    const tmp = document.createElement('div');
+    tmp.style.display = 'none';
+    document.body.appendChild(tmp);
+    const tmpQr = new QRCode(tmp, { text, width: 200, height: 200 });
+    const canvas = tmp.querySelector('canvas');
+    document.body.removeChild(tmp);
+    return null; // fallback — canvas download fine hai
+  } catch { return null; }
+}
+
+// ===================== COPY URL =====================
+function copyUrl() {
+  const url = document.getElementById('show-tracking-url').textContent;
+  navigator.clipboard.writeText(url).then(() => toast('URL copied!')).catch(() => {
+    const el = document.createElement('textarea');
+    el.value = url;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    toast('URL copied!');
+  });
+}
+
+// ===================== LOAD QR LIST =====================
+async function loadQRs() {
+  if (!SCRIPT_URL) {
+    document.getElementById('qr-list-wrap').innerHTML = '<div class="loading">Setup tab mein Apps Script URL daalo pehle</div>';
+    return;
+  }
+
+  document.getElementById('qr-list-wrap').innerHTML = '<div class="loading">Loading...</div>';
+
+  try {
+    const data = await callScript({ action: 'list' });
+    const qrs = data.qrs || [];
+
+    if (!qrs.length) {
+      document.getElementById('qr-list-wrap').innerHTML = '<div class="loading">Koi QR code nahi mila. Pehle Create karo.</div>';
+      return;
+    }
+
+    let html = '';
+    for (const qr of qrs) {
+      html += `
+      <div class="qr-item">
+        <div class="qr-item-info">
+          <div class="qr-item-label">${esc(qr.label || qr.id)}</div>
+          <div class="qr-item-url">${esc(qr.url)}</div>
+          <div style="margin-top:5px; display:flex; gap:6px; flex-wrap:wrap;">
+            ${qr.campaign ? `<span class="badge badge-purple">${esc(qr.campaign)}</span>` : ''}
+            <span style="font-size:11px; color:var(--muted); font-family:monospace;">${esc(qr.id)}</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0;">
+          <button class="btn btn-ghost btn-sm" onclick="showStats('${esc(qr.id)}', '${esc(qr.label || qr.id)}')">📊 Stats</button>
+          <button class="btn btn-ghost btn-sm" onclick="editUrl('${esc(qr.id)}', '${esc(qr.url)}')">✎ Edit URL</button>
+        </div>
+      </div>`;
+    }
+
+    document.getElementById('qr-list-wrap').innerHTML = html;
+
+  } catch (e) {
+    document.getElementById('qr-list-wrap').innerHTML = `<div class="loading" style="color:var(--red)">Error: ${e.message}</div>`;
+  }
+}
+
+// ===================== EDIT URL =====================
+function editUrl(id, currentUrl) {
+  const newUrl = prompt(`QR ID: ${id}\n\nNew destination URL:`, currentUrl);
+  if (!newUrl || newUrl === currentUrl) return;
+
+  try { new URL(newUrl); } catch { return toast('Invalid URL'); }
+
+  callScript({ action: 'update', id, url: newUrl })
+    .then(() => { toast('URL updated! Same QR, new destination ✓'); loadQRs(); })
+    .catch(() => toast('Update failed'));
+}
+
+// ===================== STATS =====================
+async function showStats(id, label) {
+  // Create modal
+  const modal = document.createElement('div');
+  modal.id = 'stats-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;';
+
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:640px;max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;">${esc(label)}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:monospace;">${id}</div>
+        </div>
+        <button onclick="document.getElementById('stats-modal').remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">×</button>
+      </div>
+      <div id="stats-body"><div class="loading">Loading stats...</div></div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  try {
+    const data = await callScript({ action: 'getStats', id });
+    const stats = data.stats;
+
+    // Aggregate device/country
+    const devices = {}, countries = {};
+    (stats.rows || []).forEach(r => {
+      devices[r.device] = (devices[r.device] || 0) + 1;
+      if (r.country) countries[r.country] = (countries[r.country] || 0) + 1;
+    });
+
+    const topDevices = Object.entries(devices).sort((a,b) => b[1]-a[1]);
+    const topCountries = Object.entries(countries).sort((a,b) => b[1]-a[1]).slice(0, 5);
+
+    let html = `
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-box"><div class="stat-num" style="color:var(--accent-light);">${stats.total}</div><div class="stat-lbl">Total Scans</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:var(--green);">${topDevices.find(d=>d[0]==='mobile')?.[1]||0}</div><div class="stat-lbl">Mobile</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:var(--amber);">${topCountries.length}</div><div class="stat-lbl">Countries</div></div>
+      </div>`;
+
+    if (topDevices.length) {
+      html += `<div style="margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Device Breakdown</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          ${topDevices.map(([d,c]) => `<span class="badge badge-purple">${d}: ${c}</span>`).join('')}
+        </div>`;
+    }
+
+    if (topCountries.length) {
+      html += `<div style="margin-bottom:6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Top Countries</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          ${topCountries.map(([c,n]) => `<span class="badge badge-green">${c}: ${n}</span>`).join('')}
+        </div>`;
+    }
+
+    if (stats.rows && stats.rows.length) {
+      html += `<div style="margin-bottom:8px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Recent Scans</div>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Time</th><th>Device</th><th>OS</th><th>Browser</th><th>Location</th></tr></thead>
+          <tbody>
+            ${stats.rows.slice(0, 20).map(r => `
+              <tr>
+                <td style="white-space:nowrap">${r.timestamp}</td>
+                <td><span class="badge ${r.device==='mobile'?'badge-green':'badge-purple'}">${r.device}</span></td>
+                <td style="color:var(--muted)">${r.os || '—'}</td>
+                <td style="color:var(--muted)">${r.browser || '—'}</td>
+                <td>${r.city ? r.city + ', ' : ''}${r.country || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>`;
+    } else {
+      html += `<div style="color:var(--muted);text-align:center;padding:20px;">Abhi koi scan nahi hua</div>`;
+    }
+
+    document.getElementById('stats-body').innerHTML = html;
+  } catch (e) {
+    document.getElementById('stats-body').innerHTML = `<div style="color:var(--red);">Error: ${e.message}</div>`;
+  }
+}
+
+// ===================== SETUP =====================
+function saveScriptUrl(val) {
+  SCRIPT_URL = val.trim();
+  localStorage.setItem('qs_script_url', SCRIPT_URL);
+  document.getElementById('url-saved').textContent = SCRIPT_URL ? '✓ Saved' : '';
+  updateBaseUrlDisplay(SCRIPT_URL);
+}
+
+function updateBaseUrlDisplay(url) {
+  if (url) {
+    document.getElementById('show-base-url').textContent = `${url}?id=your-qr-id`;
+  }
+}
+
+async function testConnection() {
+  const el = document.getElementById('test-result');
+  if (!SCRIPT_URL) return (el.innerHTML = '<span style="color:var(--red)">URL daalo pehle</span>');
+  el.innerHTML = '<span style="color:var(--muted)">Testing...</span>';
+  try {
+    const res = await fetch(`${SCRIPT_URL}?id=__test__`);
+    if (res.ok) {
+      el.innerHTML = '<span style="color:var(--green)">✓ Connection successful! Apps Script live hai.</span>';
+    } else {
+      el.innerHTML = `<span style="color:var(--red)">Error ${res.status} — URL check karo</span>`;
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:var(--red)">Failed — CORS ya URL issue: ${e.message}</span>`;
+  }
+}
+
+// ===================== HELPERS =====================
+async function callScript(payload) {
+  if (!SCRIPT_URL) throw new Error('Apps Script URL not configured');
+
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Script error');
+  return data;
+}
+
+function randomId() {
+  return Math.random().toString(36).substring(2, 8);
+}
+
+function esc(str) {
+  return String(str || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
