@@ -452,14 +452,15 @@ a{color:var(--blue2);text-decoration:none}
           </div>
           <div class="logo-size-row">
             <span style="font-size:11px;color:var(--ink2)">Logo Size:</span>
-            <input type="range" id="logo-size-range" min="8" max="35" value="20" oninput="document.getElementById('logo-size-val').textContent=this.value+'%'" style="flex:1;background:none;accent-color:var(--blue)">
+            <input type="range" id="logo-size-range" min="8" max="35" value="20" oninput="document.getElementById('logo-size-val').textContent=this.value+'%';refreshPreviewOverlay()" style="flex:1;background:none;accent-color:var(--blue)">
             <span style="font-size:11px;color:var(--ink2);min-width:32px" id="logo-size-val">20%</span>
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);text-transform:none;letter-spacing:0;cursor:pointer">
-              <input type="checkbox" id="logo-bg-check" checked style="width:auto;accent-color:var(--blue)">
+              <input type="checkbox" id="logo-bg-check" checked style="width:auto;accent-color:var(--blue)" onchange="refreshPreviewOverlay()">
               White background behind logo
             </label>
+
             <button class="btn btn-red btn-xs" style="margin-left:auto" onclick="removeLogo()">✕ Remove</button>
           </div>
         </div>
@@ -1069,7 +1070,8 @@ function handleLogoFile(file){
       empty.style.display = 'none';
       document.getElementById('logo-drop').classList.add('has-logo');
       document.getElementById('logo-controls').style.display = 'block';
-      toast('Logo loaded!', 'ok');
+      refreshPreviewOverlay();
+      toast('Logo loaded! Position/size adjust karo ↓', 'ok');
     };
     img.src = e.target.result;
   };
@@ -1083,6 +1085,8 @@ function removeLogo(){
   document.getElementById('logo-drop').classList.remove('has-logo');
   document.getElementById('logo-controls').style.display = 'none';
   document.getElementById('logo-file').value = '';
+  const old = document.getElementById('logo-overlay-canvas');
+  if(old) old.remove();
   toast('Logo removed');
 }
 
@@ -1090,70 +1094,97 @@ function setLogoPos(pos, btn){
   LOGO.pos = pos;
   document.querySelectorAll('.lpos-btn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
+  refreshPreviewOverlay();
 }
 
-// Composite canvas: QR + Logo
+// ── Draw logo onto a canvas at given size ──
+function drawLogoOnCanvas(cv, size){
+  if(!LOGO.img) return;
+  const ctx = cv.getContext('2d');
+  const pct = parseInt(document.getElementById('logo-size-range').value) / 100;
+  const lw  = Math.round(size * pct);
+  const lh  = Math.round(lw * (LOGO.img.height / LOGO.img.width));
+  const pad = Math.round(size * 0.025);
+
+  const POS = {
+    tl:{x:pad,          y:pad},
+    tc:{x:(size-lw)/2,  y:pad},
+    tr:{x:size-lw-pad,  y:pad},
+    ml:{x:pad,          y:(size-lh)/2},
+    mc:{x:(size-lw)/2,  y:(size-lh)/2},
+    mr:{x:size-lw-pad,  y:(size-lh)/2},
+    bl:{x:pad,          y:size-lh-pad},
+    bc:{x:(size-lw)/2,  y:size-lh-pad},
+    br:{x:size-lw-pad,  y:size-lh-pad}
+  };
+  const {x, y} = POS[LOGO.pos] || POS.mc;
+
+  // White bg behind logo
+  const bgCheck = document.getElementById('logo-bg-check');
+  if(bgCheck && bgCheck.checked){
+    const bp = Math.round(size * 0.018);
+    const r  = Math.round(size * 0.012);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(x-bp, y-bp, lw+bp*2, lh+bp*2, r);
+    ctx.fill();
+  }
+
+  // Draw logo — smooth for images
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(LOGO.img, x, y, lw, lh);
+}
+
+// Composite canvas for download
 function getCompositeCanvas(targetSize){
   const srcCv = document.querySelector('#qr-canvas canvas');
   if(!srcCv) return null;
 
-  const cv = document.createElement('canvas');
-  cv.width = targetSize; cv.height = targetSize;
+  const cv  = document.createElement('canvas');
+  cv.width  = targetSize;
+  cv.height = targetSize;
   const ctx = cv.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
 
-  // Draw QR
+  // QR: nearest-neighbor scale to keep crisp modules
+  ctx.imageSmoothingEnabled = false;
   ctx.drawImage(srcCv, 0, 0, targetSize, targetSize);
 
-  // Overlay logo
-  if(LOGO.img){
-    const pct = parseInt(document.getElementById('logo-size-range').value) / 100;
-    const lw = Math.round(targetSize * pct);
-    const lh = Math.round(lw * (LOGO.img.height / LOGO.img.width));
-    const pad = Math.round(targetSize * 0.02);
-
-    const POS = {
-      tl:{x:pad, y:pad},
-      tc:{x:(targetSize-lw)/2, y:pad},
-      tr:{x:targetSize-lw-pad, y:pad},
-      ml:{x:pad, y:(targetSize-lh)/2},
-      mc:{x:(targetSize-lw)/2, y:(targetSize-lh)/2},
-      mr:{x:targetSize-lw-pad, y:(targetSize-lh)/2},
-      bl:{x:pad, y:targetSize-lh-pad},
-      bc:{x:(targetSize-lw)/2, y:targetSize-lh-pad},
-      br:{x:targetSize-lw-pad, y:targetSize-lh-pad}
-    };
-    const {x, y} = POS[LOGO.pos] || POS.mc;
-
-    const bgCheck = document.getElementById('logo-bg-check');
-    if(bgCheck && bgCheck.checked){
-      const bpad = Math.round(targetSize * 0.015);
-      ctx.fillStyle = '#ffffff';
-      roundRect(ctx, x - bpad, y - bpad, lw + bpad*2, lh + bpad*2, Math.round(targetSize*0.015));
-    }
-    ctx.drawImage(LOGO.img, x, y, lw, lh);
-  }
+  // Logo on top
+  drawLogoOnCanvas(cv, targetSize);
   return cv;
 }
 
-function roundRect(ctx, x, y, w, h, r){
-  ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
-  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
-  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
-  ctx.closePath();
-  ctx.fill();
+// Live preview overlay — draws onto a visible canvas on top of the QR
+function refreshPreviewOverlay(){
+  // Remove old overlay canvas if any
+  const old = document.getElementById('logo-overlay-canvas');
+  if(old) old.remove();
+
+  const qrBox = document.getElementById('qr-box');
+  const srcCv = qrBox.querySelector('canvas');
+  if(!srcCv) return;
+
+  const size = srcCv.offsetWidth || srcCv.width;
+
+  const overlay = document.createElement('canvas');
+  overlay.id = 'logo-overlay-canvas';
+  overlay.width  = size;
+  overlay.height = size;
+  overlay.style.cssText = 'position:absolute;top:14px;left:14px;pointer-events:none;border-radius:4px';
+  qrBox.style.position = 'relative';
+
+  if(LOGO.img) drawLogoOnCanvas(overlay, size);
+  qrBox.appendChild(overlay);
 }
 
 // ═══════════════════════════════════════════════════
 //  CODE.GS PAGE
 // ═══════════════════════════════════════════════════
 const CODE_GS_TEXT = `// =====================================================
-// QR Studio — Google Apps Script (v2)
+// QR Studio — Google Apps Script (v2.2)
 // © 2025 Vedang Soni · All rights reserved
-// CORS-safe: GET supports JSONP, POST uses no-cors
+// REDIRECT FIX: ContentService HTML — proper browser redirect
 // =====================================================
 
 const SHEET_ID    = 'APNI_SHEET_ID_YAHAN';  // <- Yahan apni Google Sheet ID daalo
@@ -1185,24 +1216,20 @@ function doGet(e) {
   if (!id) return HtmlService.createHtmlOutput('<h2>QR Studio Active — © 2025 Vedang Soni</h2>');
 
   const finalUrl = getFinalUrl(id);
-  if (!finalUrl) return HtmlService.createHtmlOutput('<h2>QR code not found</h2>');
+  if (!finalUrl) {
+    return ContentService.createTextOutput('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h2>QR not found</h2></body></html>').setMimeType(ContentService.MimeType.HTML);
+  }
 
   try { logScan(id, e); } catch (err) {}
 
-  return HtmlService.createHtmlOutput(
-    '<!DOCTYPE html><html><head><title>Redirecting...</title>' +
-    '<style>body{font-family:sans-serif;background:#0f0f0f;color:#888;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center}</style>' +
-    '</head><body>' +
-    '<div><div style="font-size:32px;margin-bottom:12px">↗</div>' +
-    '<div style="font-size:15px;margin-bottom:8px">Redirecting you...</div>' +
-    '<a href="' + finalUrl + '" style="color:#4f7bff;font-size:13px">Click here if not redirected</a></div>' +
-    '<script>' +
-    'try{top.location.href="' + finalUrl + '";}catch(e){}' +
-    'window.location.replace("' + finalUrl + '");' +
-    'setTimeout(function(){window.location.href="' + finalUrl + '";},100);' +
-    '<\/script>' +
-    '</body></html>'
-  ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  var html = '<!DOCTYPE html><html><head><meta charset=\"utf-8\">' +
+    '<meta http-equiv=\"refresh\" content=\"0;url=' + finalUrl + '\">' +
+    '</head><body style=\"font-family:sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0\">' +
+    '<div style=\"text-align:center;color:#888\"><div style=\"font-size:32px;margin-bottom:10px\">↗</div>' +
+    '<div>Redirecting...</div><a href=\"' + finalUrl + '\" style=\"color:#4f7bff;font-size:13px;margin-top:8px;display:block\">Click here</a></div>' +
+    '<script>window.location.replace("' + finalUrl + '");<\/script>' +
+    '</body></html>';
+  return ContentService.createTextOutput(html).setMimeType(ContentService.MimeType.HTML);
 }
 
 function doPost(e) {
@@ -1417,6 +1444,8 @@ function doGenerate(){
   }
 
   document.getElementById('qr-out').scrollIntoView({behavior:'smooth',block:'nearest'});
+  // Refresh logo overlay on newly rendered QR
+  setTimeout(refreshPreviewOverlay, 150);
 }
 
 function resetCreate(){
