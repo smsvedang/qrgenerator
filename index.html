@@ -11,8 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
-   
-    <!-- Google tag (gtag.js) -->
+
+ <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-7Y5V4PQDYM"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -21,6 +21,7 @@
 
   gtag('config', 'G-7Y5V4PQDYM');
 </script>
+
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -442,7 +443,7 @@ a:hover{text-decoration:underline}
     <div class="step"><div class="step-h"><div class="step-n">4</div><div class="step-t">Worker URL yahan daalo</div></div>
       <div style="margin-bottom:11px">
         <label>Cloudflare Worker URL</label>
-        <input id="s-url" placeholder="https://qr-redirect.vedang.workers.dev" oninput="saveSetup()" style="margin-top:4px">
+        <input id="s-url" placeholder="https://qr-redirect.vedang.workers.dev" oninput="saveSetup()" oninput="saveSetup()" style="margin-top:4px">
         <div class="hint" style="margin-top:3px">QR codes is URL ke /r/:id format mein generate honge</div>
       </div>
       <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
@@ -713,6 +714,12 @@ const PAGE_META = {
 // ── INIT ──
 window.onload = () => {
   loadSetupFields();
+  // Fix stored URL if https:// is missing
+  if (S.workerUrl && !S.workerUrl.startsWith('http')) {
+    S.workerUrl = 'https://' + S.workerUrl;
+    lsSet('qs_wurl', S.workerUrl);
+    document.getElementById('s-url').value = S.workerUrl;
+  }
   updateConnUI();
   setType('url', document.querySelector('.tb'));
   renderHistory();
@@ -1256,7 +1263,13 @@ function loadSetupFields() {
 }
 
 function saveSetup() {
-  S.workerUrl = document.getElementById('s-url').value.trim();
+  let wurl = document.getElementById('s-url').value.trim();
+  // Auto-add https:// if missing
+  if (wurl && !wurl.startsWith('http://') && !wurl.startsWith('https://')) {
+    wurl = 'https://' + wurl;
+    document.getElementById('s-url').value = wurl;
+  }
+  S.workerUrl = wurl;
   S.sheetId   = document.getElementById('s-sid').value.trim();
   S.org       = document.getElementById('s-org').value.trim();
   lsSet('qs_wurl', S.workerUrl); lsSet('qs_sid', S.sheetId); lsSet('qs_org', S.org);
@@ -1468,12 +1481,16 @@ function jsonResp(obj) { return ContentService.createTextOutput(JSON.stringify(o
 
 <script type="text/plain" id="worker-js-data">
 // =====================================================
-// QR Studio — Cloudflare Worker (v1.2)
+// QR Studio — Cloudflare Worker (v1.3 — JSON FIX)
 // © 2025 Vedang Soni · All rights reserved
-// smsvedang.github.io/qr-studio
+// =====================================================
+// FIX: Apps Script HTML response handling
+// Apps Script URL must be deployed correctly:
+//   Execute as: Me
+//   Who has access: Anyone
 // =====================================================
 
-const APPS_SCRIPT_URL = 'APNA_APPS_SCRIPT_URL_YAHAN'; // Line 11 — apna Apps Script URL daalo
+const APPS_SCRIPT_URL = 'APNA_APPS_SCRIPT_URL_YAHAN'; // Line 14 — apna URL daalo
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -1483,14 +1500,36 @@ const CORS = {
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url), path = url.pathname, method = request.method;
+    const url = new URL(request.url);
+    const method = request.method;
+    // Normalize path: support both /api/list and /qrstudio/api/list
+    // Extract the meaningful part after any optional base prefix
+    const rawPath = url.pathname;
+    // Check if path contains a known route segment
+    const knownRoutes = ['/r/', '/api/', '/health'];
+    let path = rawPath;
+    for (const route of knownRoutes) {
+      const idx = rawPath.indexOf(route);
+      if (idx > 0) { path = rawPath.slice(idx); break; }
+    }
+    if (path === '/' + rawPath.split('/')[1] || rawPath === '/') path = rawPath;
 
     if (method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
+    // Health check — also tests Apps Script connectivity
     if (path === '/' || path === '/health') {
-      return Response.json({ status: 'ok', service: 'QR Studio Worker v1.2', author: '2025 Vedang Soni' }, { headers: CORS });
+      let scriptStatus = 'unknown';
+      try {
+        const r = await callScript('GET', 'action=ping', null);
+        scriptStatus = r ? 'ok' : 'error';
+      } catch(e) { scriptStatus = 'error: ' + e.message; }
+      return Response.json({
+        status: 'ok', service: 'QR Studio Worker v1.3',
+        author: '2025 Vedang Soni', scriptStatus
+      }, { headers: CORS });
     }
 
+    // /r/:id — QR scan redirect
     if (path.startsWith('/r/')) {
       const id = decodeURIComponent(path.slice(3).split('?')[0]);
       if (!id) return new Response(null, { status: 302, headers: { 'Location': '/' } });
@@ -1498,7 +1537,12 @@ export default {
       const finalUrl = await getUrl(id);
       if (!finalUrl) {
         return new Response(
-          '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Not Found</title></head><body style="font-family:sans-serif;text-align:center;padding:60px;background:#0f0f0f;color:#888"><h2>QR code not found</h2><p>ID: ' + id + '</p><p>This link may be invalid or expired.</p><p style="margin-top:20px;font-size:12px">2025 Vedang Soni - QR Studio</p></body></html>',
+          '<html><head><meta charset="utf-8"><title>Not Found</title></head>' +
+          '<body style="font-family:sans-serif;text-align:center;padding:60px;background:#0f0f0f;color:#888">' +
+          '<h2 style="color:#ccc">QR code not found</h2>' +
+          '<p>ID: ' + id + '</p>' +
+          '<p style="font-size:12px;margin-top:20px">2025 Vedang Soni - QR Studio</p>' +
+          '</body></html>',
           { status: 404, headers: { 'Content-Type': 'text/html;charset=utf-8' } }
         );
       }
@@ -1507,61 +1551,153 @@ export default {
       return new Response(null, { status: 302, headers: { 'Location': finalUrl } });
     }
 
+    // /api/create
     if (path === '/api/create' && method === 'POST') {
-      try { const b=await request.json(); const r=await postScript({action:'create',...b}); return Response.json(r,{headers:CORS}); }
-      catch(e) { return Response.json({success:false,error:e.message},{headers:CORS}); }
+      try {
+        const body = await request.json();
+        const r = await callScript('POST', null, { action: 'create', ...body });
+        return Response.json(r || { success: false, error: 'No response from script' }, { headers: CORS });
+      } catch(e) {
+        return Response.json({ success: false, error: e.message }, { headers: CORS });
+      }
     }
 
+    // /api/update
     if (path === '/api/update' && method === 'POST') {
-      try { const b=await request.json(); const r=await postScript({action:'update',...b}); return Response.json(r,{headers:CORS}); }
-      catch(e) { return Response.json({success:false,error:e.message},{headers:CORS}); }
+      try {
+        const body = await request.json();
+        const r = await callScript('POST', null, { action: 'update', ...body });
+        return Response.json(r || { success: false, error: 'No response from script' }, { headers: CORS });
+      } catch(e) {
+        return Response.json({ success: false, error: e.message }, { headers: CORS });
+      }
     }
 
+    // /api/list
     if (path === '/api/list') {
-      try { const r=await getScript('action=list'); return Response.json(r,{headers:CORS}); }
-      catch(e) { return Response.json({success:false,qrs:[],error:e.message},{headers:CORS}); }
+      try {
+        const r = await callScript('GET', 'action=list', null);
+        return Response.json(r || { success: false, qrs: [] }, { headers: CORS });
+      } catch(e) {
+        return Response.json({ success: false, qrs: [], error: e.message }, { headers: CORS });
+      }
     }
 
+    // /api/stats/:id
     if (path.startsWith('/api/stats/')) {
       const id = decodeURIComponent(path.slice(11));
-      try { const r=await postScript({action:'getStats',id}); return Response.json(r,{headers:CORS}); }
-      catch(e) { return Response.json({success:false,stats:{total:0,rows:[]}},{headers:CORS}); }
+      try {
+        const r = await callScript('POST', null, { action: 'getStats', id });
+        return Response.json(r || { success: false, stats: { total: 0, rows: [] } }, { headers: CORS });
+      } catch(e) {
+        return Response.json({ success: false, stats: { total: 0, rows: [] } }, { headers: CORS });
+      }
     }
 
     return new Response('Not found', { status: 404 });
   }
 };
 
+// ═══════════════════════════════════════════
+// Core: call Apps Script — handles redirects
+// and HTML error responses gracefully
+// ═══════════════════════════════════════════
+async function callScript(method, queryString, body) {
+  const fetchUrl = queryString
+    ? APPS_SCRIPT_URL + '?' + queryString
+    : APPS_SCRIPT_URL;
+
+  const options = {
+    method,
+    redirect: 'follow',
+    headers: { 'User-Agent': 'Mozilla/5.0 QR-Studio-Worker/1.3' },
+  };
+
+  if (method === 'POST' && body) {
+    // Apps Script doPost reads e.postData.contents when Content-Type is text/plain
+    options.headers['Content-Type'] = 'text/plain;charset=utf-8';
+    options.body = JSON.stringify(body);
+  }
+
+  const resp = await fetch(fetchUrl, options);
+  const text = await resp.text();
+
+  // Detect HTML response (login page, error page, etc.)
+  if (text.trimStart().startsWith('<')) {
+    console.error('Apps Script returned HTML instead of JSON.');
+    console.error('Check deployment: Execute as "Me", Access "Anyone"');
+    console.error('First 200 chars:', text.substring(0, 200));
+    throw new Error('Apps Script returned HTML — redeploy with Execute as: Me, Access: Anyone');
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    console.error('JSON parse error. Response:', text.substring(0, 200));
+    throw new Error('Invalid JSON from Apps Script: ' + text.substring(0, 100));
+  }
+}
+
+// ═══════════════════════════════════════════
+// Get final URL for a QR ID
+// ═══════════════════════════════════════════
 async function getUrl(id) {
   try {
-    const r = await getScript('action=getUrl&id=' + encodeURIComponent(id));
+    const r = await callScript('GET', 'action=getUrl&id=' + encodeURIComponent(id), null);
     return r && r.success && r.url ? r.url : null;
-  } catch(e) { console.error('getUrl error:', e.message); return null; }
+  } catch(e) {
+    console.error('getUrl failed:', e.message);
+    return null;
+  }
 }
 
-async function getScript(qs) {
-  const resp = await fetch(APPS_SCRIPT_URL + '?' + qs, { method:'GET', redirect:'follow', headers:{'User-Agent':'QR-Studio-Worker/1.2'}, cf:{cacheTtl:3} });
-  const text = await resp.text();
-  try { return JSON.parse(text); } catch(_) { console.error('Non-JSON:', text.substring(0,200)); return null; }
-}
-
-async function postScript(payload) {
-  const resp = await fetch(APPS_SCRIPT_URL, { method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain','User-Agent':'QR-Studio-Worker/1.2'}, body:JSON.stringify(payload) });
-  const text = await resp.text();
-  try { return JSON.parse(text); } catch(_) { return {success:false, error:'Non-JSON response'}; }
-}
-
+// ═══════════════════════════════════════════
+// Log scan — called via ctx.waitUntil
+// ═══════════════════════════════════════════
 async function logScan(request, id) {
-  const ip=request.headers.get('CF-Connecting-IP')||'unknown', ua=request.headers.get('User-Agent')||'';
-  const country=request.headers.get('CF-IPCountry')||'', city=request.cf?.city||'', region=request.cf?.region||'';
+  const ip      = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const ua      = request.headers.get('User-Agent') || '';
+  const country = request.headers.get('CF-IPCountry') || '';
+  const city    = request.cf?.city   || '';
+  const region  = request.cf?.region || '';
   try {
-    await postScript({ action:'logScan', id, ip, ua, device:detectDevice(ua), os:detectOS(ua), browser:detectBrowser(ua), city, region, country });
-  } catch(e) { console.error('logScan error:', e.message); }
+    await callScript('POST', null, {
+      action: 'logScan', id, ip, ua,
+      device:  detectDevice(ua),
+      os:      detectOS(ua),
+      browser: detectBrowser(ua),
+      city, region, country
+    });
+  } catch(e) {
+    console.error('logScan failed:', e.message);
+  }
 }
 
-function detectDevice(ua) { if(/tablet|ipad/i.test(ua))return'tablet'; if(/mobile|android|iphone/i.test(ua))return'mobile'; return'desktop'; }
-function detectOS(ua) { if(/android/i.test(ua))return'Android'; if(/iphone|ipad/i.test(ua))return'iOS'; if(/windows nt 10/i.test(ua))return'Windows 10/11'; if(/windows/i.test(ua))return'Windows'; if(/mac os x/i.test(ua))return'macOS'; if(/linux/i.test(ua))return'Linux'; return'Unknown'; }
-function detectBrowser(ua) { if(/samsungbrowser/i.test(ua))return'Samsung Browser'; if(/edg\//i.test(ua))return'Edge'; if(/chrome\/[0-9]/i.test(ua)&&!/edg/.test(ua))return'Chrome'; if(/firefox/i.test(ua))return'Firefox'; if(/safari/i.test(ua)&&!/chrome/i.test(ua))return'Safari'; return'Unknown'; }
+// ═══════════════════════════════════════════
+// UA Detection
+// ═══════════════════════════════════════════
+function detectDevice(ua) {
+  if (/tablet|ipad/i.test(ua))         return 'tablet';
+  if (/mobile|android|iphone/i.test(ua)) return 'mobile';
+  return 'desktop';
+}
+function detectOS(ua) {
+  if (/android/i.test(ua))          return 'Android';
+  if (/iphone|ipad/i.test(ua))      return 'iOS';
+  if (/windows nt 10/i.test(ua))    return 'Windows 10/11';
+  if (/windows/i.test(ua))          return 'Windows';
+  if (/mac os x/i.test(ua))         return 'macOS';
+  if (/linux/i.test(ua))            return 'Linux';
+  return 'Unknown';
+}
+function detectBrowser(ua) {
+  if (/samsungbrowser/i.test(ua))                      return 'Samsung Browser';
+  if (/edg\//i.test(ua))                               return 'Edge';
+  if (/chrome\/[0-9]/i.test(ua) && !/edg/.test(ua))   return 'Chrome';
+  if (/firefox/i.test(ua))                             return 'Firefox';
+  if (/safari/i.test(ua) && !/chrome/i.test(ua))      return 'Safari';
+  return 'Unknown';
+}
 </script>
 
 </body>
