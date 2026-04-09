@@ -648,7 +648,27 @@ const LOGO = { img: null, pos: 'mc' };
 const TYPES = {
   url:{
     label:'URL / Link', icon:'🔗', tracked:true,
-    fields:`<div class="fl"><div class="fg"><label>URL *</label><input id="f-url" type="url" placeholder="https://sahyogmedical.in/offer" style="margin-top:4px"></div></div>`,
+    fields:`<div class="fl">
+      <div class="fg">
+        <label>URL *</label>
+        <input id="f-url" type="url" placeholder="https://sahyogmedical.in/offer" style="margin-top:4px" oninput="clearShortened()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" type="button" onclick="shortenUrl()" id="shorten-btn" style="flex-shrink:0">✂ Shorten URL</button>
+        <span id="shorten-status" style="font-size:11px;color:var(--ink3)"></span>
+      </div>
+      <div id="shorten-result" style="display:none;background:rgba(34,212,224,.06);border:1px solid rgba(34,212,224,.2);border-radius:9px;padding:11px 13px;margin-top:2px">
+        <div style="font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Shortened URL</div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span id="shorten-url-val" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--cyan);word-break:break-all;flex:1"></span>
+          <button class="cbtn" title="Copy" onclick="copyEl('shorten-url-val')">⎘</button>
+        </div>
+        <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+          <button class="btn btn-cyan btn-sm" onclick="useShortened()">↑ Use as QR URL</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearShortened()">✕ Dismiss</button>
+        </div>
+      </div>
+    </div>`,
     build(){ const u=v('f-url').trim(); if(!u) return err('URL daalo'); try{new URL(u)}catch{return err('https:// se shuru karo')} return u; }
   },
   text:{
@@ -1003,6 +1023,66 @@ function getMyLoc() {
     document.getElementById('f-lon').value = p.coords.longitude.toFixed(6);
     toast('Location captured!', 'ok');
   }, () => toast('Location denied', 'err'));
+}
+
+// ── URL SHORTENER (via own Worker) ──
+async function shortenUrl() {
+  const input = document.getElementById('f-url');
+  if (!input) return;
+  const url = input.value.trim();
+  if (!url) return toast('Pehle URL daalo', 'err');
+  try { new URL(url); } catch { return toast('Valid URL daalo (https:// se)', 'err'); }
+
+  if (!S.workerUrl) return toast('Pehle Setup tab mein Worker URL daalo', 'err');
+
+  const btn = document.getElementById('shorten-btn');
+  const status = document.getElementById('shorten-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Shortening…';
+  status.textContent = '';
+  document.getElementById('shorten-result').style.display = 'none';
+
+  try {
+    const base = S.workerUrl.replace(/\/+$/, '');
+    const id = rndId();
+    const label = document.getElementById('qr-lbl')?.value?.trim() || 'Short Link';
+    // Register a short link entry using /api/shorten on the worker
+    const res = await fetch(`${base}/api/shorten`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, url, label })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Worker returned failure');
+    const short = data.shortUrl || `${base}/r/${id}`;
+    document.getElementById('shorten-url-val').textContent = short;
+    document.getElementById('shorten-result').style.display = 'block';
+    status.textContent = '';
+    toast('URL shortened via Worker! ✂', 'ok');
+  } catch (e) {
+    status.style.color = 'var(--red)';
+    status.textContent = '⚠ Failed: ' + e.message;
+    toast('Shortening failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✂ Shorten URL';
+  }
+}
+
+function useShortened() {
+  const short = document.getElementById('shorten-url-val')?.textContent?.trim();
+  if (!short) return;
+  const input = document.getElementById('f-url');
+  if (input) { input.value = short; input.dispatchEvent(new Event('input')); }
+  document.getElementById('shorten-result').style.display = 'none';
+  toast('Shortened URL use ho raha hai!', 'ok');
+}
+
+function clearShortened() {
+  const r = document.getElementById('shorten-result');
+  if (r) r.style.display = 'none';
+  const s = document.getElementById('shorten-status');
+  if (s) s.textContent = '';
 }
 
 // ── HISTORY ──
@@ -1577,6 +1657,20 @@ export default {
         const body = await request.json();
         const r = await callScript('POST', null, { action: 'update', ...body });
         return Response.json(r || { success: false, error: 'No response from script' }, { headers: CORS });
+      } catch(e) {
+        return Response.json({ success: false, error: e.message }, { headers: CORS });
+      }
+    }
+
+    // /api/shorten — create a short link, return the /r/:id URL
+    if (path === '/api/shorten' && method === 'POST') {
+      try {
+        const body = await request.json();
+        if (!body.url || !body.id) return Response.json({ success: false, error: 'url and id required' }, { headers: CORS });
+        const r = await callScript('POST', null, { action: 'create', id: body.id, url: body.url, label: body.label || 'Short Link', campaign: 'shortener' });
+        const baseUrl = new URL(request.url).origin;
+        const shortUrl = `${baseUrl}/r/${body.id}`;
+        return Response.json({ success: true, shortUrl, id: body.id }, { headers: CORS });
       } catch(e) {
         return Response.json({ success: false, error: e.message }, { headers: CORS });
       }
